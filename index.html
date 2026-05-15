@@ -509,7 +509,7 @@ function txItemHtml(t){
   const isInc=t.txType==='income';
   const d=new Date(t.date+'T00:00:00');
   const wd=['日','一','二','三','四','五','六'];
-  const cardTag=t.cardName?`<span style="border:1px solid #bd5404;border-radius:20px;padding:1px 6px;font-size:10px;color:#bd5404;white-space:nowrap">${t.cardName}</span>`:'';
+  const cardTag=t.cardName?`<span style="border:1px solid #c95e06;border-radius:20px;padding:1px 6px;font-size:10px;color:#c95e06;white-space:nowrap">${t.cardName}</span>`:'';
   const payTag=t.payment?`<span style="border:1.5px solid #93c5fd;border-radius:20px;padding:1px 6px;font-size:10px;color:#3b82f6;white-space:nowrap">${t.payment}</span>`:'';
   const txId=t.id;
   const amtColor=isInc?'#16a34a':'#dc2626';
