@@ -238,6 +238,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
   <div style="height:20px"></div>
   <div class="section-title">付款方式</div>
   <div id="pay-manage" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px"></div>
+  <div class="section-title">標籤</div>
+  <div id="label-manage" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px"></div>
   <div class="section-title">消費類別</div>
   <div class="card" id="cat-manage"></div>
   <button class="btn-primary" onclick="openAddCatModal()" style="background:var(--muted);margin-top:8px">＋ 新增類別</button>
@@ -287,6 +289,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
     </div>
     <div id="reward-preview-box">預計回饋：<strong id="reward-preview-val"></strong></div>
 
+    <!-- 標籤 -->
+    <div class="form-group" id="label-group">
+      <label>標籤</label>
+      <div id="tx-label-row" class="pay-row" style="flex-wrap:wrap"></div>
+    </div>
     <!-- 備注 + 常用標籤 -->
     <div class="form-group">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -393,14 +400,14 @@ function getIcon(n){return iconOverrides[n]||ICON_MAP[n]||'📦';}
 
 let iconOverrides={};
 
-let cards=[],transactions=[],routes=[],categories=[],payMethods=[];
+let cards=[],transactions=[],routes=[],categories=[],payMethods=[],labelList=[];
 let currentPage='home';
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth();
 let selectedDate=todayStr();
 let statsMonthIdx=0;
 let routeRows=[];
 let recTab='all',recMonth='all',recYear=new Date().getFullYear().toString(),recCat='all';
-let _selCat='',_selSubcat='',_selPay='',_txType='expense',_selCardId='',_selRoutes=[];
+let _selCat='',_selSubcat='',_selPay='',_txType='expense',_selCardId='',_selRoutes=[],_selLabels=[];
 let overviewMonthIdx=0;
 let expandedCards=new Set();
 let billingPeriods=[];
@@ -420,13 +427,14 @@ function parseReward(r){if(!r)return 0;if(typeof r==='number')return r;return St
 
 async function init(){
   try{
-    const [c,t,r,cat,pay,bp]=await Promise.all([
+    const [c,t,r,cat,pay,bp,lb]=await Promise.all([
       sb('cards','GET',null,'?select=*&order=id.asc'),
       sb('transactions','GET',null,'?select=*&order=date.desc'),
       sb('routes','GET',null,'?select=*&order=sortOrder.asc'),
       sb('category','GET',null,'?select=*&order=sortOrder.asc,id.asc'),
       sb('payment','GET',null,'?select=*&order=id.asc'),
       sb('billing_periods','GET',null,'?select=*&order=start.desc'),
+      sb('labels','GET',null,'?select=*&order=id.asc'),
     ]);
     cards=c||[];
     transactions=(t||[]).map(normTx);
@@ -445,6 +453,7 @@ async function init(){
     // build iconOverrides from supabase data
     categories.forEach(c=>{if(c.icon)iconOverrides[c.name]=c.icon;});
     payMethods=(pay||[]).map(p=>p.payment).filter(Boolean);
+    labelList=(lb||[]).map(l=>l.label).filter(Boolean);
   }catch(e){showToast('載入失敗，請重試');console.error(e);}
   document.getElementById('loading-screen').style.display='none';
   renderCalendar();
@@ -464,7 +473,8 @@ function normTx(t){
     rate:t.rate||'',
     reward:t.reward||'',
     note:t.note||'',
-    txType:t.txType||'expense'
+    txType:t.txType||'expense',
+    label:t.label||''
   };
 }
 
@@ -514,7 +524,7 @@ function showPage(p){
   if(p==='records')renderRecords();
   if(p==='overview'){overviewYM=getCurrentBillingYearMonth();renderOverview();}
   if(p==='stats')renderStats();
-  if(p==='settings'){renderSettings();renderPayManage();renderCatManage();}
+  if(p==='settings'){renderSettings();renderPayManage();renderLabelManage();renderCatManage();}
 }
 
 // ── CALENDAR ─────────────────────────────────────────────
@@ -970,7 +980,7 @@ function renderOverview(){
               <div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center">${subTag}${payTag}</div>
               <span style="font-size:14px;font-weight:700;color:var(--red);white-space:nowrap;flex-shrink:0">${fmtMoney(t.amount)}</span>
             </div>
-            ${rwParts?`<div style="font-size:10px;color:var(--green);text-align:right">${rwParts}</div>`:''}
+            ${rwParts?`<div style="font-size:10px;color:var(--green)">${rwParts}</div>`:''}
           </div>
         </div>`;
       });
@@ -1144,7 +1154,7 @@ function deleteQuickNote(i){
 }
 
 function openTxModal(type){
-  _txType=type||'expense';_selCat='';_selSubcat='';_selPay='';_selCardId='';_selRoutes=[];
+  _txType=type||'expense';_selCat='';_selSubcat='';_selPay='';_selCardId='';_selRoutes=[];_selLabels=[];
   document.getElementById('tx-modal-title').textContent=_txType==='income'?'新增收入':'新增支出';
   document.getElementById('tx-date').value=selectedDate||todayStr();
   document.getElementById('tx-name').value='';document.getElementById('tx-amount').value='';document.getElementById('tx-note').value='';
@@ -1154,7 +1164,7 @@ function openTxModal(type){
   sb.className='btn-primary '+(_txType==='income'?'btn-income':'btn-expense');
   document.getElementById('pay-group').style.display=_txType==='income'?'none':'block';
   renderQuickNoteTags();
-  setTxTypeBtns(_txType);renderTxCatGrid();renderTxPayRow();
+  setTxTypeBtns(_txType);renderTxCatGrid();renderTxPayRow();renderTxLabelRow();
   renderTxCardGrid('');
   document.getElementById('route-group').style.display='none';
   document.getElementById('reward-preview-box').style.display='none';
@@ -1164,6 +1174,7 @@ function openTxModal(type){
 function openEditTxModal(id){
   const t=transactions.find(tx=>tx.id===id);if(!t)return;
   _txType=t.txType||'expense';_selCat=t.category||'';_selSubcat=t.subcategory||'';_selPay=t.payment||'';
+  _selLabels=t.label?t.label.split(',').map(x=>x.trim()).filter(Boolean):[];
   document.getElementById('tx-modal-title').textContent=_txType==='income'?'編輯收入':'編輯支出';
   document.getElementById('tx-date').value=t.date;
   document.getElementById('tx-name').value=t.name||'';
@@ -1174,7 +1185,7 @@ function openEditTxModal(id){
   const sb=document.getElementById('tx-save-btn');sb.textContent='儲存';sb.disabled=false;
   sb.className='btn-primary '+(_txType==='income'?'btn-income':'btn-expense');
   document.getElementById('pay-group').style.display=_txType==='income'?'none':'block';
-  setTxTypeBtns(_txType);renderTxCatGrid();renderTxPayRow();
+  setTxTypeBtns(_txType);renderTxCatGrid();renderTxPayRow();renderTxLabelRow();
   const card=getCardByName(t.cardName);
   _selCardId=card?card.id:'';
   _selRoutes=t.channel?t.channel.split(',').map(s=>s.trim()).filter(Boolean):[];
@@ -1220,6 +1231,19 @@ function renderTxPayRow(){
 }
 
 function selectPayByIdx(i){if(payMethods[i]!==undefined){_selPay=payMethods[i];renderTxPayRow();}}
+
+function renderTxLabelRow(){
+  const el=document.getElementById('tx-label-row');
+  if(!el)return;
+  el.innerHTML=labelList.map(l=>`
+    <div class="pay-btn ${_selLabels.includes(l)?'selected':''}" onclick="toggleTxLabel('${l}')">${l}</div>`).join('');
+}
+function toggleTxLabel(l){
+  const idx=_selLabels.indexOf(l);
+  if(idx>-1)_selLabels.splice(idx,1);
+  else _selLabels.push(l);
+  renderTxLabelRow();
+}
 
 function populateCardSelect(selId){}
 
@@ -1289,7 +1313,8 @@ async function saveTx(){
   const rate=orderedRoutes.map(r=>r.rate).join(',');
   const reward=orderedRoutes.map(r=>+(amount*Number(r.rate)).toFixed(2)).join(',');
   const btn=document.getElementById('tx-save-btn');btn.disabled=true;btn.textContent='儲存中…';
-  const tx={date,name,amount,category:_selCat,subcategory:_selSubcat,payment:_selPay,cardName:card?card.name:'',channel,rate,reward,note,txType:_txType};
+  const label=_selLabels.join(',');
+  const tx={date,name,amount,category:_selCat,subcategory:_selSubcat,payment:_selPay,cardName:card?card.name:'',channel,rate,reward,note,txType:_txType,label};
   try{
     if(editId){
       await sb('transactions','PATCH',tx,`?id=eq.${editId}`);
@@ -1505,6 +1530,40 @@ async function deletePayMethod(i){
   try{
     await sb('payment','DELETE',null,`?payment=eq.${encodeURIComponent(name)}`);
     payMethods.splice(i,1);renderPayManage();showToast('已刪除');
+  }catch(e){showToast('刪除失敗');}
+}
+
+// ── LABEL MANAGE ─────────────────────────────────────────
+function renderLabelManage(){
+  const el=document.getElementById('label-manage');
+  const tags=labelList.map((l,i)=>`
+    <div style="display:inline-flex;align-items:center;gap:4px;border:1.5px solid var(--border);border-radius:20px;padding:5px 10px 5px 12px;background:#fff;font-size:13px">
+      <span>${l}</span>
+      <button onclick="deleteLabel(${i})" style="border:none;background:none;color:#9ca3af;font-size:14px;cursor:pointer;padding:0;line-height:1;margin-left:2px">×</button>
+    </div>`).join('');
+  el.innerHTML=tags+`<button onclick="openAddLabelModal()" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1.5px dashed var(--border);border-radius:50%;background:none;color:var(--accent);font-size:20px;cursor:pointer">+</button>`;
+}
+
+function openAddLabelModal(){
+  const name=prompt('新增標籤：');
+  if(!name||!name.trim())return;
+  if(labelList.includes(name.trim())){showToast('已存在');return;}
+  addLabelName(name.trim());
+}
+
+async function addLabelName(name){
+  try{
+    await sb('labels','POST',{label:name});
+    labelList.push(name);renderLabelManage();showToast('已新增 ✓');
+  }catch(e){showToast('新增失敗');}
+}
+
+async function deleteLabel(i){
+  const name=labelList[i];
+  if(!confirm(`確定刪除「${name}」？`))return;
+  try{
+    await sb('labels','DELETE',null,`?label=eq.${encodeURIComponent(name)}`);
+    labelList.splice(i,1);renderLabelManage();showToast('已刪除');
   }catch(e){showToast('刪除失敗');}
 }
 
