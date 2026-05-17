@@ -610,7 +610,7 @@ function txItemHtml(t){
             const chs=t.channel.split(',').map(x=>x.trim());
             const rws=String(t.reward).split(',').map(x=>parseFloat(x)||0);
             const parts=chs.map((ch,i)=>rws[i]>0?`${ch} $${rws[i].toFixed(0)}`:null).filter(Boolean);
-            return parts.length?parts.join('、'):'—';
+            return parts.length?parts.join(','):'—';
           })()}</span></div>
           ${t.note?`<div style="font-size:12px;color:#9ca3af;margin-top:2px">備註：${t.note}</div>`:''}
         </div>
@@ -964,7 +964,7 @@ function renderOverview(){
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:2px">
             <span style="font-size:14px;font-weight:700;color:var(--red);white-space:nowrap">${fmtMoney(t.amount)}</span>
-            ${(()=>{if(!t.channel||!t.reward)return '';const chs=t.channel.split(',').map(x=>x.trim());const rws=String(t.reward).split(',').map(x=>parseFloat(x)||0);const parts=chs.map((ch,i)=>rws[i]>0?`${ch} $${rws[i].toFixed(0)}`:null).filter(Boolean);return parts.length?`<span style="font-size:11px;color:var(--green)">${parts.join('、')}</span>`:'';})()}
+            ${(()=>{if(!t.channel||!t.reward)return '';const chs=t.channel.split(',').map(x=>x.trim());const rws=String(t.reward).split(',').map(x=>parseFloat(x)||0);const parts=chs.map((ch,i)=>rws[i]>0?`${ch} $${rws[i].toFixed(0)}`:null).filter(Boolean);return parts.length?`<span style="font-size:11px;color:var(--green)">${parts.join(',')}</span>`:'';})()}
           </div>
         </div>`;
       });
