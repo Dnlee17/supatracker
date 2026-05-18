@@ -240,6 +240,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
   <div id="pay-manage" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px"></div>
   <div class="section-title">標籤</div>
   <div id="label-manage" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px"></div>
+  <div class="section-title">子類別顏色</div>
+  <div id="subcolor-manage" style="margin-bottom:16px"></div>
   <div class="section-title">消費類別</div>
   <div class="card" id="cat-manage"></div>
   <button class="btn-primary" onclick="openAddCatModal()" style="background:var(--muted);margin-top:8px">＋ 新增類別</button>
@@ -354,25 +356,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
   <div class="modal">
     <button class="modal-close" onclick="closeModal('cat-modal')">×</button>
     <div class="modal-title" id="cat-modal-title">新增類別</div>
-    <div style="display:grid;grid-template-columns:64px 1fr;gap:10px;margin-bottom:14px">
+    <div style="display:grid;grid-template-columns:64px 48px 1fr;gap:10px;margin-bottom:14px;align-items:end">
       <div><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:5px">圖示</label><input type="text" id="cat-icon-input" placeholder="🍽️" maxlength="4" style="width:100%;font-size:24px;text-align:center;padding:8px"></div>
+      <div><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:5px">顏色</label><input type="color" id="cat-color" value="#3b82f6" style="width:100%;height:40px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px"></div>
       <div><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:5px">類別名稱</label><input type="text" id="cat-name" placeholder="例：餐飲" style="width:100%"></div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-      <div>
-        <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:5px">類別顏色</label>
-        <div style="display:flex;align-items:center;gap:8px">
-          <input type="color" id="cat-color" value="#3b82f6" style="width:40px;height:36px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px">
-          <input type="text" id="cat-color-text" placeholder="#3b82f6" maxlength="7" style="flex:1" oninput="syncColorFromText('cat-color','cat-color-text')">
-        </div>
-      </div>
-      <div>
-        <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:5px">子類別顏色</label>
-        <div style="display:flex;align-items:center;gap:8px">
-          <input type="color" id="cat-subcolor" value="#4ade80" style="width:40px;height:36px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px">
-          <input type="text" id="cat-subcolor-text" placeholder="#4ade80" maxlength="7" style="flex:1" oninput="syncColorFromText('cat-subcolor','cat-subcolor-text')">
-        </div>
-      </div>
     </div>
     <div class="form-group">
       <label>子類別（每行一個）</label>
@@ -406,6 +393,29 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
   </div>
 </div>
 
+<!-- 子類別顏色 modal -->
+<div class="modal-overlay" id="subcolor-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('subcolor-modal')">×</button>
+    <div class="modal-title">設定子類別顏色</div>
+    <div class="form-group">
+      <label>類別</label>
+      <select id="sc-cat" onchange="renderScSubcatSelect()">
+        <option value="">選擇類別</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>子類別</label>
+      <select id="sc-subcat"><option value="">先選類別</option></select>
+    </div>
+    <div class="form-group">
+      <label>顏色</label>
+      <input type="color" id="sc-color" value="#4ade80" style="width:100%;height:44px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px">
+    </div>
+    <button class="btn-primary" onclick="saveSubcolor()">儲存</button>
+  </div>
+</div>
+
 <script>
 const SUPA_URL='https://tabgqvmuttfplqvycfhl.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhYmdxdm11dHRmcGxxdnljZmhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3Mzg4MTYsImV4cCI6MjA5MjMxNDgxNn0.2lPqdBWpKZu82V9o6-1SdSpipRqQbOpeSXQTBWXHzGo';
@@ -414,7 +424,10 @@ const H={'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Be
 const ICON_MAP={'餐飲':'🍽️','飲食':'🍽️','交通':'🚗','購物':'🛍️','娛樂':'🎬','醫療':'🏥','旅遊':'✈️','住宿':'🏨','其他':'📦','薪資':'💰','獎金':'🎁','投資':'📈','日用品':'🧴','運動':'💪','教育':'📚','水電費':'💡','通訊費':'📡','超市':'🛒','咖啡':'☕','寵物':'🐾'};
 function getIcon(n){return iconOverrides[n]||ICON_MAP[n]||'📦';}
 function getCatColor(n,i){const c=categories.find(x=>x.name===n);return(c&&c.color)||PIE_COLORS[i%PIE_COLORS.length];}
-function getCatSubcolor(n,i){const c=categories.find(x=>x.name===n);return(c&&c.subcolor)||PIE_COLORS[i%PIE_COLORS.length];}
+function getCatSubcolor(catName,subName,i){
+  if(window.subcolorMap&&window.subcolorMap[catName+'::'+subName])return window.subcolorMap[catName+'::'+subName];
+  return PIE_COLORS[i%PIE_COLORS.length];
+}
 
 let iconOverrides={};
 
@@ -467,7 +480,10 @@ async function init(){
       if(row.subcategory)catMap[row.category].subs.push(row.subcategory);
       if(row.icon)catMap[row.category].icon=row.icon;
       if(row.color)catMap[row.category].color=row.color;
-      if(row.subcolor)catMap[row.category].subcolor=row.subcolor;
+      if(row.subcolor&&row.subcategory){
+        if(!window.subcolorMap)window.subcolorMap={};
+        window.subcolorMap[row.category+'::'+row.subcategory]=row.subcolor;
+      }
     });
     categories=Object.entries(catMap).map(([name,data])=>({name,subs:data.subs,icon:data.icon||'',color:data.color||'',subcolor:data.subcolor||''}));
     // build iconOverrides from supabase data
@@ -544,7 +560,7 @@ function showPage(p){
   if(p==='records')renderRecords();
   if(p==='overview'){overviewYM=getCurrentBillingYearMonth();renderOverview();}
   if(p==='stats')renderStats();
-  if(p==='settings'){renderSettings();renderPayManage();renderLabelManage();renderCatManage();}
+  if(p==='settings'){renderSettings();renderPayManage();renderLabelManage();renderSubcolorManage();renderCatManage();}
 }
 
 // ── CALENDAR ─────────────────────────────────────────────
@@ -1102,7 +1118,7 @@ function renderStats(){
   const labelTxs=expTxs.filter(t=>t.label&&t.label.split(',').map(x=>x.trim()).includes('CAB-7888'));
   if(labelTxs.length){
     const lmap={};
-    labelTxs.forEach(t=>{const k=t.subcategory||t.category||'其他';if(!lmap[k])lmap[k]={total:0};lmap[k].total+=t.amount;});
+    labelTxs.forEach(t=>{const k=t.subcategory||t.category||'其他';if(!lmap[k])lmap[k]={total:0,cat:t.category||''};lmap[k].total+=t.amount;});
     const lData=Object.entries(lmap).sort((a,b)=>b[1].total-a[1].total);
     const lTotal=lData.reduce((s,[,v])=>s+v.total,0);
     const R=80,cx=100,cy=100,ir=40;
@@ -1115,7 +1131,7 @@ function renderStats(){
       const xi1=cx+ir*Math.cos(angle),yi1=cy+ir*Math.sin(angle);
       const xi2=cx+ir*Math.cos(angle+a),yi2=cy+ir*Math.sin(angle+a);
       const lg=a>Math.PI?1:0;
-      const color=getCatSubcolor(name,i);
+      const color=getCatSubcolor(v.cat,name,i);
       if(frac>0.001)slices2+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R},${R} 0 ${lg},1 ${x2},${y2} L${xi2},${yi2} A${ir},${ir} 0 ${lg},0 ${xi1},${yi1}" fill="${color}" opacity="0.9"/>`;
       angle+=a;
     });
@@ -1126,7 +1142,7 @@ function renderStats(){
         <svg viewBox="0 0 200 200" style="width:66%;flex-shrink:0">${slices2}</svg>
         <div style="flex:1;min-width:0">`;
     lData.forEach(([name,v],i)=>{
-      const color=getCatSubcolor(name,i);
+      const color=getCatSubcolor(v.cat,name,i);
       html+=`<div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
         <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
         <span style="font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
@@ -1658,6 +1674,70 @@ function syncColorFromText(pickerId,textId){
   if(/^#[0-9a-fA-F]{6}$/.test(txt))document.getElementById(pickerId).value=txt;
 }
 
+function renderSubcolorManage(){
+  const el=document.getElementById('subcolor-manage');
+  if(!el)return;
+  // collect all subcat+subcolor pairs
+  const pairs=[];
+  categories.forEach(c=>{
+    (c.subs||[]).forEach(s=>{
+      const subcolor=getSubcolor(c.name,s);
+      pairs.push({cat:c.name,sub:s,color:subcolor});
+    });
+  });
+  el.innerHTML=`
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+      ${pairs.map(p=>`
+        <div style="display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:20px;padding:4px 10px;background:var(--card)">
+          <div style="width:10px;height:10px;border-radius:50%;background:${p.color||'#e5e7eb'};flex-shrink:0"></div>
+          <span style="font-size:12px;color:var(--muted)">${p.cat}</span>
+          <span style="font-size:12px">·</span>
+          <span style="font-size:12px">${p.sub}</span>
+        </div>`).join('')}
+    </div>
+    <button onclick="openSubcolorModal()" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1.5px dashed var(--border);border-radius:50%;background:none;color:var(--accent);font-size:20px;cursor:pointer">+</button>`;
+}
+
+function getSubcolor(catName,subName){
+  // find subcolor from raw category data - need to store subcolors separately
+  if(!window.subcolorMap)window.subcolorMap={};
+  return window.subcolorMap[catName+'::'+subName]||'';
+}
+
+function openSubcolorModal(){
+  const sel=document.getElementById('sc-cat');
+  sel.innerHTML='<option value="">選擇類別</option>'+categories.filter(c=>c.subs&&c.subs.length).map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+  document.getElementById('sc-subcat').innerHTML='<option value="">先選類別</option>';
+  document.getElementById('sc-color').value='#4ade80';
+  document.getElementById('subcolor-modal').classList.add('open');
+}
+
+function renderScSubcatSelect(){
+  const catName=document.getElementById('sc-cat').value;
+  const cat=categories.find(c=>c.name===catName);
+  const el=document.getElementById('sc-subcat');
+  if(!cat||!cat.subs||!cat.subs.length){el.innerHTML='<option value="">無子類別</option>';return;}
+  el.innerHTML='<option value="">選擇子類別</option>'+cat.subs.map(s=>`<option value="${s}">${s}</option>`).join('');
+  // pre-fill color if exists
+  const existing=getSubcolor(catName,el.value);
+  if(existing)document.getElementById('sc-color').value=existing;
+}
+
+async function saveSubcolor(){
+  const catName=document.getElementById('sc-cat').value;
+  const subName=document.getElementById('sc-subcat').value;
+  const color=document.getElementById('sc-color').value;
+  if(!catName||!subName)return showToast('請選擇類別和子類別');
+  try{
+    await sb('category','PATCH',{subcolor:color},`?category=eq.${encodeURIComponent(catName)}&subcategory=eq.${encodeURIComponent(subName)}`);
+    if(!window.subcolorMap)window.subcolorMap={};
+    window.subcolorMap[catName+'::'+subName]=color;
+    closeModal('subcolor-modal');
+    renderSubcolorManage();
+    showToast('已儲存 ✓');
+  }catch(e){showToast('儲存失敗');}
+}
+
 function openAddCatModal(){
   document.getElementById('cat-modal-title').textContent='新增類別';
   document.getElementById('cat-icon-input').value='';
@@ -1665,9 +1745,6 @@ function openAddCatModal(){
   document.getElementById('cat-subcats').value='';
   document.getElementById('cat-edit-old-name').value='';
   document.getElementById('cat-color').value='#3b82f6';
-  document.getElementById('cat-color-text').value='#3b82f6';
-  document.getElementById('cat-subcolor').value='#4ade80';
-  document.getElementById('cat-subcolor-text').value='#4ade80';
   document.getElementById('cat-save-btn').textContent='新增類別';
   document.getElementById('cat-save-btn').disabled=false;
   document.getElementById('cat-modal').classList.add('open');
@@ -1680,12 +1757,7 @@ function openEditCatModal(i){
   document.getElementById('cat-name').value=cat.name;
   document.getElementById('cat-subcats').value=(cat.subs||[]).join('\n');
   document.getElementById('cat-edit-old-name').value=cat.name;
-  const color=cat.color||'#3b82f6';
-  const subcolor=cat.subcolor||'#4ade80';
-  document.getElementById('cat-color').value=color;
-  document.getElementById('cat-color-text').value=color;
-  document.getElementById('cat-subcolor').value=subcolor;
-  document.getElementById('cat-subcolor-text').value=subcolor;
+  document.getElementById('cat-color').value=cat.color||'#3b82f6';
   document.getElementById('cat-save-btn').textContent='儲存變更';
   document.getElementById('cat-save-btn').disabled=false;
   document.getElementById('cat-modal').classList.add('open');
@@ -1697,17 +1769,16 @@ async function saveCat(){
   const oldName=document.getElementById('cat-edit-old-name').value;
   const subsRaw=document.getElementById('cat-subcats').value;
   const subs=subsRaw.split('\n').map(s=>s.trim()).filter(Boolean);
-  const color=document.getElementById('cat-color-text').value.trim()||document.getElementById('cat-color').value||'';
-  const subcolor=document.getElementById('cat-subcolor-text').value.trim()||document.getElementById('cat-subcolor').value||'';
+  const color=document.getElementById('cat-color').value||'';
   if(!name){showToast('請填入類別名稱');return;}
   if(icon)iconOverrides[name]=icon;else delete iconOverrides[name];
   const btn=document.getElementById('cat-save-btn');btn.disabled=true;
   try{
     if(oldName)await sb('category','DELETE',null,`?category=eq.${encodeURIComponent(oldName)}`);
     const newSortOrder=oldName?categories.findIndex(c=>c.name===oldName):categories.length;
-    const rows=subs.length?subs.map(s=>({category:name,subcategory:s,icon:icon||null,sortOrder:newSortOrder,color:color||null,subcolor:subcolor||null})):[{category:name,subcategory:null,icon:icon||null,sortOrder:newSortOrder,color:color||null,subcolor:subcolor||null}];
+    const rows=subs.length?subs.map(s=>({category:name,subcategory:s,icon:icon||null,sortOrder:newSortOrder,color:color||null})):[{category:name,subcategory:null,icon:icon||null,sortOrder:newSortOrder,color:color||null}];
     await sb('category','POST',rows);
-    const catObj={name,subs,icon:icon||'',color,subcolor};
+    const catObj={name,subs,icon:icon||'',color};
     if(icon)iconOverrides[name]=icon;else delete iconOverrides[name];
     if(oldName){const idx=categories.findIndex(c=>c.name===oldName);if(idx>=0)categories[idx]=catObj;else categories.push(catObj);}
     else categories.push(catObj);
