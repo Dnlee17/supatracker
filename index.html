@@ -362,15 +362,15 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
       <div>
         <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:5px">類別顏色</label>
         <div style="display:flex;align-items:center;gap:8px">
-          <input type="color" id="cat-color" value="#3b82f6" style="width:44px;height:38px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px">
-          <span id="cat-color-preview" style="font-size:12px;color:var(--muted)"></span>
+          <input type="color" id="cat-color" value="#3b82f6" style="width:40px;height:36px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px">
+          <input type="text" id="cat-color-text" placeholder="#3b82f6" maxlength="7" style="flex:1" oninput="syncColorFromText('cat-color','cat-color-text')">
         </div>
       </div>
       <div>
         <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:5px">子類別顏色</label>
         <div style="display:flex;align-items:center;gap:8px">
-          <input type="color" id="cat-subcolor" value="#93c5fd" style="width:44px;height:38px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px">
-          <span id="cat-subcolor-preview" style="font-size:12px;color:var(--muted)"></span>
+          <input type="color" id="cat-subcolor" value="#4ade80" style="width:40px;height:36px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px">
+          <input type="text" id="cat-subcolor-text" placeholder="#4ade80" maxlength="7" style="flex:1" oninput="syncColorFromText('cat-subcolor','cat-subcolor-text')">
         </div>
       </div>
     </div>
@@ -413,6 +413,8 @@ const H={'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Be
 
 const ICON_MAP={'餐飲':'🍽️','飲食':'🍽️','交通':'🚗','購物':'🛍️','娛樂':'🎬','醫療':'🏥','旅遊':'✈️','住宿':'🏨','其他':'📦','薪資':'💰','獎金':'🎁','投資':'📈','日用品':'🧴','運動':'💪','教育':'📚','水電費':'💡','通訊費':'📡','超市':'🛒','咖啡':'☕','寵物':'🐾'};
 function getIcon(n){return iconOverrides[n]||ICON_MAP[n]||'📦';}
+function getCatColor(n,i){const c=categories.find(x=>x.name===n);return(c&&c.color)||PIE_COLORS[i%PIE_COLORS.length];}
+function getCatSubcolor(n,i){const c=categories.find(x=>x.name===n);return(c&&c.subcolor)||PIE_COLORS[i%PIE_COLORS.length];}
 
 let iconOverrides={};
 
@@ -1055,7 +1057,7 @@ function renderStats(){
       const xi1=cx+ir*Math.cos(angle),yi1=cy+ir*Math.sin(angle);
       const xi2=cx+ir*Math.cos(angle+a),yi2=cy+ir*Math.sin(angle+a);
       const lg=a>Math.PI?1:0;
-      const color=PIE_COLORS[i%PIE_COLORS.length];
+      const color=getCatColor(name,i);
       if(frac>0.001)slices+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R},${R} 0 ${lg},1 ${x2},${y2} L${xi2},${yi2} A${ir},${ir} 0 ${lg},0 ${xi1},${yi1}" fill="${color}" opacity="0.9"/>`;
       angle+=a;
     });
@@ -1065,7 +1067,7 @@ function renderStats(){
         <svg viewBox="0 0 200 200" style="width:66%;flex-shrink:0">${slices}</svg>
         <div style="flex:1;min-width:0">`;
     catData.forEach(([name,v],i)=>{
-      const color=PIE_COLORS[i%PIE_COLORS.length];
+      const color=getCatColor(name,i);
       html+=`<div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
         <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
         <span style="font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.icon} ${name}</span>
@@ -1074,7 +1076,7 @@ function renderStats(){
     });
     html+=`</div></div><div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px">`;
     catData.forEach(([name,v],i)=>{
-      const color=PIE_COLORS[i%PIE_COLORS.length];
+      const color=getCatColor(name,i);
       const detailId=`stat-detail-${i}`;
       html+=`<div>
         <div style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer" onclick="toggleStatDetail('${detailId}')">
@@ -1113,7 +1115,7 @@ function renderStats(){
       const xi1=cx+ir*Math.cos(angle),yi1=cy+ir*Math.sin(angle);
       const xi2=cx+ir*Math.cos(angle+a),yi2=cy+ir*Math.sin(angle+a);
       const lg=a>Math.PI?1:0;
-      const color=PIE_COLORS[i%PIE_COLORS.length];
+      const color=getCatSubcolor(name,i);
       if(frac>0.001)slices2+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R},${R} 0 ${lg},1 ${x2},${y2} L${xi2},${yi2} A${ir},${ir} 0 ${lg},0 ${xi1},${yi1}" fill="${color}" opacity="0.9"/>`;
       angle+=a;
     });
@@ -1124,7 +1126,7 @@ function renderStats(){
         <svg viewBox="0 0 200 200" style="width:66%;flex-shrink:0">${slices2}</svg>
         <div style="flex:1;min-width:0">`;
     lData.forEach(([name,v],i)=>{
-      const color=PIE_COLORS[i%PIE_COLORS.length];
+      const color=getCatSubcolor(name,i);
       html+=`<div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
         <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
         <span style="font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
@@ -1651,6 +1653,11 @@ function renderCatManage(){
     </div>`).join('');
 }
 
+function syncColorFromText(pickerId,textId){
+  const txt=document.getElementById(textId).value.trim();
+  if(/^#[0-9a-fA-F]{6}$/.test(txt))document.getElementById(pickerId).value=txt;
+}
+
 function openAddCatModal(){
   document.getElementById('cat-modal-title').textContent='新增類別';
   document.getElementById('cat-icon-input').value='';
@@ -1658,7 +1665,9 @@ function openAddCatModal(){
   document.getElementById('cat-subcats').value='';
   document.getElementById('cat-edit-old-name').value='';
   document.getElementById('cat-color').value='#3b82f6';
-  document.getElementById('cat-subcolor').value='#93c5fd';
+  document.getElementById('cat-color-text').value='#3b82f6';
+  document.getElementById('cat-subcolor').value='#4ade80';
+  document.getElementById('cat-subcolor-text').value='#4ade80';
   document.getElementById('cat-save-btn').textContent='新增類別';
   document.getElementById('cat-save-btn').disabled=false;
   document.getElementById('cat-modal').classList.add('open');
@@ -1671,8 +1680,12 @@ function openEditCatModal(i){
   document.getElementById('cat-name').value=cat.name;
   document.getElementById('cat-subcats').value=(cat.subs||[]).join('\n');
   document.getElementById('cat-edit-old-name').value=cat.name;
-  document.getElementById('cat-color').value=cat.color||'#3b82f6';
-  document.getElementById('cat-subcolor').value=cat.subcolor||'#93c5fd';
+  const color=cat.color||'#3b82f6';
+  const subcolor=cat.subcolor||'#4ade80';
+  document.getElementById('cat-color').value=color;
+  document.getElementById('cat-color-text').value=color;
+  document.getElementById('cat-subcolor').value=subcolor;
+  document.getElementById('cat-subcolor-text').value=subcolor;
   document.getElementById('cat-save-btn').textContent='儲存變更';
   document.getElementById('cat-save-btn').disabled=false;
   document.getElementById('cat-modal').classList.add('open');
@@ -1684,15 +1697,15 @@ async function saveCat(){
   const oldName=document.getElementById('cat-edit-old-name').value;
   const subsRaw=document.getElementById('cat-subcats').value;
   const subs=subsRaw.split('\n').map(s=>s.trim()).filter(Boolean);
-  const color=document.getElementById('cat-color').value||'#3b82f6';
-  const subcolor=document.getElementById('cat-subcolor').value||'#93c5fd';
+  const color=document.getElementById('cat-color-text').value.trim()||document.getElementById('cat-color').value||'';
+  const subcolor=document.getElementById('cat-subcolor-text').value.trim()||document.getElementById('cat-subcolor').value||'';
   if(!name){showToast('請填入類別名稱');return;}
   if(icon)iconOverrides[name]=icon;else delete iconOverrides[name];
   const btn=document.getElementById('cat-save-btn');btn.disabled=true;
   try{
     if(oldName)await sb('category','DELETE',null,`?category=eq.${encodeURIComponent(oldName)}`);
     const newSortOrder=oldName?categories.findIndex(c=>c.name===oldName):categories.length;
-    const rows=subs.length?subs.map(s=>({category:name,subcategory:s,icon:icon||null,sortOrder:newSortOrder,color,subcolor})):[{category:name,subcategory:null,icon:icon||null,sortOrder:newSortOrder,color,subcolor}];
+    const rows=subs.length?subs.map(s=>({category:name,subcategory:s,icon:icon||null,sortOrder:newSortOrder,color:color||null,subcolor:subcolor||null})):[{category:name,subcategory:null,icon:icon||null,sortOrder:newSortOrder,color:color||null,subcolor:subcolor||null}];
     await sb('category','POST',rows);
     const catObj={name,subs,icon:icon||'',color,subcolor};
     if(icon)iconOverrides[name]=icon;else delete iconOverrides[name];
@@ -1719,7 +1732,7 @@ async function moveCat(i,dir){
 async function deleteSubcat(catIdx,subIdx){
   const cat=categories[catIdx];if(!cat)return;
   cat.subs.splice(subIdx,1);
-  const rows=cat.subs.length?cat.subs.map(s=>({category:cat.name,subcategory:s,icon:iconOverrides[cat.name]||null,sortOrder:catIdx,color:cat.color||null,subcolor:cat.subcolor||null})):[{category:cat.name,subcategory:null,icon:iconOverrides[cat.name]||null,sortOrder:catIdx,color:cat.color||null,subcolor:cat.subcolor||null}];
+  const rows=cat.subs.length?cat.subs.map(s=>({category:cat.name,subcategory:s,icon:iconOverrides[cat.name]||null,sortOrder:catIdx})):[{category:cat.name,subcategory:null,icon:iconOverrides[cat.name]||null,sortOrder:catIdx}];
   await sb('category','DELETE',null,`?category=eq.${encodeURIComponent(cat.name)}`);
   for(const r of rows)await sb('category','POST',r);
   renderCatManage();
