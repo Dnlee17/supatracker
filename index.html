@@ -572,7 +572,7 @@ function renderDayRecords(){
   const dTx=transactions.filter(t=>t.date===selectedDate);
   if(!dTx.length){el.innerHTML=`<div class="day-records-title">${d.getMonth()+1}月${d.getDate()}日 (${wd[d.getDay()]})</div><div class="empty-state"><p>這天沒有記錄</p></div>`;return;}
   let html=`<div class="day-records-title">${d.getMonth()+1}月${d.getDate()}日 (${wd[d.getDay()]})</div>`;
-  dTx.forEach(t=>html+=txItemHtml(t));
+  dTx.forEach(t=>html+=txItemHtml({...t,_page:'home'}));
   el.innerHTML=html;
 }
 
@@ -583,7 +583,7 @@ function txItemHtml(t){
   const wd=['日','一','二','三','四','五','六'];
   const cardTag=t.cardName?`<span style="border:1px solid #f59e0b;border-radius:20px;padding:1px 6px;font-size:10px;color:#d97706;white-space:nowrap">${t.cardName}</span>`:'';
   const payTag=t.payment?`<span style="border:1.5px solid #93c5fd;border-radius:20px;padding:1px 6px;font-size:10px;color:#3b82f6;white-space:nowrap">${t.payment}</span>`:'';
-  const txId=t.id;
+  const txId=(t._page||'tx')+'-'+t.id;
   const amtColor=isInc?'#16a34a':'#dc2626';
   const pencilSvg=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b0b7c3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
   const hasTag=t.cardName||t.payment;
@@ -622,7 +622,7 @@ function txItemHtml(t){
             const parts=chs.map((ch,i)=>rws[i]>0?`${ch} $${rws[i].toFixed(0)}`:null).filter(Boolean);
             return parts.length?parts.join(', '):'—';
           })()}</span></div>
-          ${t.label?`<div style="font-size:12px;color:#9ca3af;margin-top:2px">🏷️ ${t.label.split(',').join('、')}</div>`:''}
+          ${t.label?`<div style="font-size:12px;color:#9ca3af;margin-top:2px">標籤：${t.label.split(',').join('、')}</div>`:''}
           ${t.note?`<div style="font-size:12px;color:#9ca3af;margin-top:2px">備註：${t.note}</div>`:''}
         </div>
         <button onclick="event.stopPropagation();openEditTxModal('${txId}')" style="border:none;background:none;cursor:pointer;padding:4px">${pencilSvg}</button>
@@ -678,7 +678,7 @@ function renderRecords(){
   let html='';
   Object.keys(grouped).sort().reverse().forEach(date=>{
     html+=`<div style="margin-bottom:0">`;
-    grouped[date].forEach(t=>html+=txItemHtml(t));
+    grouped[date].forEach(t=>html+=txItemHtml({...t,_page:'rec'}));
     html+=`</div>`;
   });
   el.innerHTML=html;
