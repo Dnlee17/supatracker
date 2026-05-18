@@ -622,6 +622,7 @@ function txItemHtml(t){
             const parts=chs.map((ch,i)=>rws[i]>0?`${ch} $${rws[i].toFixed(0)}`:null).filter(Boolean);
             return parts.length?parts.join(', '):'—';
           })()}</span></div>
+          ${t.label?`<div style="font-size:12px;color:#9ca3af;margin-top:2px">🏷️ ${t.label.split(',').join('、')}</div>`:''}
           ${t.note?`<div style="font-size:12px;color:#9ca3af;margin-top:2px">備註：${t.note}</div>`:''}
         </div>
         <button onclick="event.stopPropagation();openEditTxModal('${txId}')" style="border:none;background:none;cursor:pointer;padding:4px">${pencilSvg}</button>
@@ -1008,20 +1009,10 @@ function renderStats(){
   const bal=inc-exp;
   const reward=txs.reduce((s,t)=>s+parseReward(t.reward),0);
 
-  // Summary boxes
-  let html=`<div style="display:flex;gap:10px;margin-bottom:14px">
-    <div style="flex:1;background:var(--card);border-radius:12px;padding:14px;box-shadow:var(--shadow);text-align:center">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">收入</div>
-      <div style="font-size:20px;font-weight:700;color:var(--green)">${fmtMoney(inc)}</div>
-    </div>
-    <div style="flex:1;background:var(--card);border-radius:12px;padding:14px;box-shadow:var(--shadow);text-align:center">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">支出</div>
-      <div style="font-size:20px;font-weight:700;color:var(--red)">${fmtMoney(exp)}</div>
-    </div>
-    <div style="flex:1;background:var(--card);border-radius:12px;padding:14px;box-shadow:var(--shadow);text-align:center">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">結餘</div>
-      <div style="font-size:20px;font-weight:700;color:${bal>=0?'var(--green)':'var(--red)'}">${bal<0?'-':''}${fmtMoney(bal)}</div>
-    </div>
+  let html=`<div class="cal-summary">
+    <div class="cal-sum-box"><div class="cal-sum-label">收入</div><div class="cal-sum-val income">${fmtMoney(inc)}</div></div>
+    <div class="cal-sum-box"><div class="cal-sum-label">支出</div><div class="cal-sum-val expense">${fmtMoney(exp)}</div></div>
+    <div class="cal-sum-box"><div class="cal-sum-label">結餘</div><div class="cal-sum-val" style="color:${bal>=0?'var(--green)':'var(--red)'}">${bal<0?'-':''}${fmtMoney(Math.abs(bal))}</div></div>
   </div>`;
 
   if(reward>0){
@@ -1031,16 +1022,13 @@ function renderStats(){
     </div>`;
   }
 
-  // Pie chart
   const expTxs=txs.filter(t=>t.txType!=='income');
   if(expTxs.length){
     const cmap={};
-    expTxs.forEach(t=>{const k=t.category||'其他';if(!cmap[k])cmap[k]={icon:getIcon(k),total:0};cmap[k].total+=t.amount;});
+    expTxs.forEach(t=>{const k=t.category||'其他';if(!cmap[k])cmap[k]={icon:getIcon(k),total:0,txs:[]};cmap[k].total+=t.amount;cmap[k].txs.push(t);});
     const catData=Object.entries(cmap).sort((a,b)=>b[1].total-a[1].total);
-    // Draw SVG pie
-    const R=80,cx=100,cy=100,ir=50;
-    let angle=-Math.PI/2;
-    let slices='';
+    const R=80,cx=100,cy=100,ir=40;
+    let angle=-Math.PI/2,slices='';
     catData.forEach(([name,v],i)=>{
       const frac=exp>0?v.total/exp:0;
       const a=frac*2*Math.PI;
@@ -1053,37 +1041,88 @@ function renderStats(){
       if(frac>0.001)slices+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R},${R} 0 ${lg},1 ${x2},${y2} L${xi2},${yi2} A${ir},${ir} 0 ${lg},0 ${xi1},${yi1}" fill="${color}" opacity="0.9"/>`;
       angle+=a;
     });
-    html+=`<div class="card">
-      <div style="font-weight:600;margin-bottom:14px">支出分類佔比</div>
-      <div style="display:flex;align-items:center;gap:16px">
-        <svg viewBox="0 0 200 200" style="width:140px;height:140px;flex-shrink:0">${slices}</svg>
+    html+=`<div class="card" style="margin-bottom:14px">
+      <div style="font-weight:600;margin-bottom:14px">支出分類</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <svg viewBox="0 0 200 200" style="width:66%;flex-shrink:0">${slices}</svg>
         <div style="flex:1;min-width:0">`;
     catData.forEach(([name,v],i)=>{
-      const pct=exp>0?(v.total/exp*100).toFixed(1):0;
       const color=PIE_COLORS[i%PIE_COLORS.length];
-      html+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-        <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
-        <span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.icon} ${name}</span>
-        <span style="font-size:12px;color:var(--muted);flex-shrink:0">${pct}%</span>
+      html+=`<div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
+        <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
+        <span style="font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.icon} ${name}</span>
+        <span style="font-size:11px;color:var(--muted);flex-shrink:0">${fmtMoney(v.total)}</span>
       </div>`;
     });
-    html+=`</div></div>`;
-    // detail list
-    html+=`<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">`;
+    html+=`</div></div><div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px">`;
     catData.forEach(([name,v],i)=>{
-      const pct=exp>0?(v.total/exp*100).toFixed(1):0;
       const color=PIE_COLORS[i%PIE_COLORS.length];
-      html+=`<div class="sum-row">
-        <div style="display:flex;align-items:center;gap:8px">
-          <div style="width:10px;height:10px;border-radius:50%;background:${color}"></div>
-          <span style="font-size:18px">${v.icon}</span><span>${name}</span>
+      const detailId=`stat-detail-${i}`;
+      html+=`<div>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer" onclick="toggleStatDetail('${detailId}')">
+          <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
+          <span style="font-size:16px">${v.icon}</span>
+          <span style="flex:1;font-size:14px">${name}</span>
+          <span style="font-weight:600;font-size:14px">${fmtMoney(v.total)}</span>
+          <span style="color:var(--muted);font-size:12px;margin-left:4px">▼</span>
         </div>
-        <div class="sum-right"><div>${fmtMoney(v.total)}</div><div style="font-size:12px;color:var(--muted)">${pct}%</div></div>
+        <div id="${detailId}" style="display:none;padding:0 0 8px 24px">
+          ${v.txs.sort((a,b)=>b.date.localeCompare(a.date)).map(t=>`
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">
+              <span style="color:var(--muted)">${t.date.slice(5)} ${t.name||''}</span>
+              <span>${fmtMoney(t.amount)}</span>
+            </div>`).join('')}
+        </div>
       </div>`;
     });
     html+=`</div></div>`;
   }
+
+  // CAB-7888 label chart
+  const labelTxs=expTxs.filter(t=>t.label&&t.label.split(',').map(x=>x.trim()).includes('CAB-7888'));
+  if(labelTxs.length){
+    const lmap={};
+    labelTxs.forEach(t=>{const k=t.subcategory||t.category||'其他';if(!lmap[k])lmap[k]={total:0};lmap[k].total+=t.amount;});
+    const lData=Object.entries(lmap).sort((a,b)=>b[1].total-a[1].total);
+    const lTotal=lData.reduce((s,[,v])=>s+v.total,0);
+    const R=80,cx=100,cy=100,ir=40;
+    let angle=-Math.PI/2,slices2='';
+    lData.forEach(([name,v],i)=>{
+      const frac=lTotal>0?v.total/lTotal:0;
+      const a=frac*2*Math.PI;
+      const x1=cx+R*Math.cos(angle),y1=cy+R*Math.sin(angle);
+      const x2=cx+R*Math.cos(angle+a),y2=cy+R*Math.sin(angle+a);
+      const xi1=cx+ir*Math.cos(angle),yi1=cy+ir*Math.sin(angle);
+      const xi2=cx+ir*Math.cos(angle+a),yi2=cy+ir*Math.sin(angle+a);
+      const lg=a>Math.PI?1:0;
+      const color=PIE_COLORS[i%PIE_COLORS.length];
+      if(frac>0.001)slices2+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R},${R} 0 ${lg},1 ${x2},${y2} L${xi2},${yi2} A${ir},${ir} 0 ${lg},0 ${xi1},${yi1}" fill="${color}" opacity="0.9"/>`;
+      angle+=a;
+    });
+    html+=`<div class="card" style="margin-bottom:14px">
+      <div style="font-weight:600;margin-bottom:2px">CAB-7888</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px">合計 ${fmtMoney(lTotal)}</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <svg viewBox="0 0 200 200" style="width:66%;flex-shrink:0">${slices2}</svg>
+        <div style="flex:1;min-width:0">`;
+    lData.forEach(([name,v],i)=>{
+      const color=PIE_COLORS[i%PIE_COLORS.length];
+      html+=`<div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
+        <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
+        <span style="font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
+        <span style="font-size:11px;color:var(--muted);flex-shrink:0">${fmtMoney(v.total)}</span>
+      </div>`;
+    });
+    html+=`</div></div></div>`;
+  }
+
   document.getElementById('stats-content').innerHTML=html;
+}
+
+function toggleStatDetail(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.style.display=el.style.display==='none'?'block':'none';
 }
 
 function changeStatsMonth(dir){statsMonthIdx=Math.max(0,Math.min(statsMonthIdx-dir,getAllMonths().length-1));renderStats();}
