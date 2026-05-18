@@ -490,7 +490,7 @@ async function init(){
     categories.forEach(c=>{if(c.icon)iconOverrides[c.name]=c.icon;});
     payMethods=(pay||[]).map(p=>p.payment).filter(Boolean);
     labelList=(lb||[]).map(l=>l.label).filter(Boolean);
-  }catch(e){showToast('載入失敗，請重試');console.error(e);}
+  }catch(e){showToast('載入失敗: '+e.message);console.error('init error:',e);}
   document.getElementById('loading-screen').style.display='none';
   renderCalendar();
 }
@@ -1677,22 +1677,25 @@ function syncColorFromText(pickerId,textId){
 function renderSubcolorManage(){
   const el=document.getElementById('subcolor-manage');
   if(!el)return;
-  // collect all subcat+subcolor pairs
+  // only show pairs that have a color set
   const pairs=[];
   categories.forEach(c=>{
     (c.subs||[]).forEach(s=>{
       const subcolor=getSubcolor(c.name,s);
-      pairs.push({cat:c.name,sub:s,color:subcolor});
+      if(subcolor)pairs.push({cat:c.name,sub:s,color:subcolor});
     });
   });
+  const pencilSvgSc=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
   el.innerHTML=`
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
       ${pairs.map(p=>`
-        <div style="display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:20px;padding:4px 10px;background:var(--card)">
-          <div style="width:10px;height:10px;border-radius:50%;background:${p.color||'#e5e7eb'};flex-shrink:0"></div>
+        <div style="display:flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:20px;padding:4px 6px 4px 10px;background:var(--card)">
+          <div style="width:10px;height:10px;border-radius:50%;background:${p.color};flex-shrink:0"></div>
           <span style="font-size:12px;color:var(--muted)">${p.cat}</span>
-          <span style="font-size:12px">·</span>
+          <span style="font-size:12px;color:var(--muted)">·</span>
           <span style="font-size:12px">${p.sub}</span>
+          <button onclick="openEditSubcolor('${p.cat.replace(/'/g,"\'")}','${p.sub.replace(/'/g,"\'")}','${p.color}')" style="border:none;background:none;cursor:pointer;padding:2px">${pencilSvgSc}</button>
+          <button onclick="deleteSubcolor('${p.cat.replace(/'/g,"\'")}','${p.sub.replace(/'/g,"\'")}'')" style="border:none;background:none;color:#9ca3af;font-size:13px;cursor:pointer;padding:2px;line-height:1">×</button>
         </div>`).join('')}
     </div>
     <button onclick="openSubcolorModal()" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1.5px dashed var(--border);border-radius:50%;background:none;color:var(--accent);font-size:20px;cursor:pointer">+</button>`;
@@ -1736,6 +1739,27 @@ async function saveSubcolor(){
     renderSubcolorManage();
     showToast('已儲存 ✓');
   }catch(e){showToast('儲存失敗');}
+}
+
+function openEditSubcolor(catName,subName,currentColor){
+  const sel=document.getElementById('sc-cat');
+  sel.innerHTML='<option value="">選擇類別</option>'+categories.filter(c=>c.subs&&c.subs.length).map(c=>`<option value="${c.name}" ${c.name===catName?'selected':''}>${c.name}</option>`).join('');
+  renderScSubcatSelect();
+  setTimeout(()=>{
+    document.getElementById('sc-subcat').value=subName;
+    document.getElementById('sc-color').value=currentColor||'#4ade80';
+  },10);
+  document.getElementById('subcolor-modal').classList.add('open');
+}
+
+async function deleteSubcolor(catName,subName){
+  if(!confirm(`確定移除「${catName} · ${subName}」的顏色？`))return;
+  try{
+    await sb('category','PATCH',{subcolor:null},`?category=eq.${encodeURIComponent(catName)}&subcategory=eq.${encodeURIComponent(subName)}`);
+    if(window.subcolorMap)delete window.subcolorMap[catName+'::'+subName];
+    renderSubcolorManage();
+    showToast('已移除');
+  }catch(e){showToast('失敗');}
 }
 
 function openAddCatModal(){
