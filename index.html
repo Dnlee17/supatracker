@@ -1084,9 +1084,9 @@ function renderStats(){
         <div style="flex:1;min-width:0">`;
     catData.forEach(([name,v],i)=>{
       const color=getCatColor(name,i);
-      html+=`<div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
+      html+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
         <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
-        <span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.icon} ${name}</span>
+        <span style="font-size:14px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right">${v.icon} ${name}</span>
       </div>`;
     });
     html+=`</div></div><div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px">`;
@@ -1597,11 +1597,11 @@ async function moveCard(i,dir){
 function renderPayManage(){
   const el=document.getElementById('pay-manage');
   const tags=payMethods.map((p,i)=>`
-    <div style="display:inline-flex;align-items:center;gap:4px;border:1.5px solid var(--border);border-radius:20px;padding:5px 10px 5px 12px;background:#fff;font-size:13px">
-      <span>${p}</span>
-      <button onclick="deletePayMethod(${i})" style="border:none;background:none;color:#9ca3af;font-size:14px;cursor:pointer;padding:0;line-height:1;margin-left:2px">×</button>
+    <div style="display:inline-flex;align-items:center;gap:4px;border:1.5px solid var(--border);border-radius:20px;padding:6px 10px 6px 12px;background:#fff;font-size:13px;height:34px;box-sizing:border-box">
+      <span style="line-height:1">${p}</span>
+      <button onclick="deletePayMethod(${i})" style="border:none;background:none;color:#9ca3af;font-size:16px;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center">×</button>
     </div>`).join('');
-  el.innerHTML=tags+`<button onclick="openAddPayModal()" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1.5px dashed var(--border);border-radius:50%;background:none;color:var(--accent);font-size:20px;cursor:pointer">+</button>`;
+  el.innerHTML=tags+`<button onclick="openAddPayModal()" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:1.5px dashed var(--border);border-radius:50%;background:none;color:var(--accent);font-size:20px;cursor:pointer">+</button>`;
 }
 
 function openAddPayModal(){
@@ -1829,8 +1829,20 @@ async function saveCat(){
   try{
     if(oldName)await sb('category','DELETE',null,`?category=eq.${encodeURIComponent(oldName)}`);
     const newSortOrder=oldName?categories.findIndex(c=>c.name===oldName):categories.length;
-    const rows=subs.length?subs.map(s=>({category:name,subcategory:s,icon:icon||null,sortOrder:newSortOrder,color:color||null})):[{category:name,subcategory:null,icon:icon||null,sortOrder:newSortOrder,color:color||null}];
+    // preserve existing subcolors
+    const rows=subs.length?subs.map(s=>{
+      const existingSubcolor=(window.subcolorMap||{})[(oldName||name)+'::'+s]||null;
+      return{category:name,subcategory:s,icon:icon||null,sortOrder:newSortOrder,color:color||null,subcolor:existingSubcolor};
+    }):[{category:name,subcategory:null,icon:icon||null,sortOrder:newSortOrder,color:color||null,subcolor:null}];
     await sb('category','POST',rows);
+    // update subcolorMap keys if category name changed
+    if(oldName&&oldName!==name&&window.subcolorMap){
+      const newMap={};
+      Object.entries(window.subcolorMap).forEach(([k,v])=>{
+        newMap[k.startsWith(oldName+'::')?(name+'::'+k.slice(oldName.length+2)):k]=v;
+      });
+      window.subcolorMap=newMap;
+    }
     const catObj={name,subs,icon:icon||'',color};
     if(icon)iconOverrides[name]=icon;else delete iconOverrides[name];
     if(oldName){const idx=categories.findIndex(c=>c.name===oldName);if(idx>=0)categories[idx]=catObj;else categories.push(catObj);}
