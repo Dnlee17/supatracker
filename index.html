@@ -435,7 +435,7 @@ let cards=[],transactions=[],routes=[],categories=[],payMethods=[],labelList=[];
 let currentPage='home';
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth();
 let selectedDate=todayStr();
-let statsMonthIdx=0;
+let statsMonthIdx=0,cabYear='all';
 let routeRows=[];
 let recTab='all',recMonth='all',recYear=new Date().getFullYear().toString(),recCat='all';
 let _selCat='',_selSubcat='',_selPay='',_txType='expense',_selCardId='',_selRoutes=[],_selLabels=[];
@@ -1086,8 +1086,7 @@ function renderStats(){
       const color=getCatColor(name,i);
       html+=`<div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
         <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
-        <span style="font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.icon} ${name}</span>
-        <span style="font-size:11px;color:var(--muted);flex-shrink:0">${fmtMoney(v.total)}</span>
+        <span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.icon} ${name}</span>
       </div>`;
     });
     html+=`</div></div><div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px">`;
@@ -1105,7 +1104,7 @@ function renderStats(){
         <div id="${detailId}" style="display:none;padding:0 0 8px 24px">
           ${v.txs.sort((a,b)=>b.date.localeCompare(a.date)).map(t=>`
             <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">
-              <span style="color:var(--muted)">${t.date.slice(5)} ${t.name||''}</span>
+              <span style="color:var(--muted)">${t.date.slice(5)}&nbsp;&nbsp;${t.name||''}</span>
               <span>${fmtMoney(t.amount)}</span>
             </div>`).join('')}
         </div>
@@ -1115,10 +1114,17 @@ function renderStats(){
   }
 
   // CAB-7888 label chart
-  const labelTxs=expTxs.filter(t=>t.label&&t.label.split(',').map(x=>x.trim()).includes('CAB-7888'));
+  const allCabTxs=transactions.filter(t=>t.txType!=='income'&&t.label&&t.label.split(',').map(x=>x.trim()).includes('CAB-7888'));
+  const cabYears=[...new Set(allCabTxs.map(t=>t.date.slice(0,4)))].sort();
+  const labelTxs=cabYear==='all'?allCabTxs:allCabTxs.filter(t=>t.date.slice(0,4)===cabYear);
+  // year chips
+  const yearChips=[`<div class="filter-chip ${cabYear==='all'?'active':''}" onclick="cabYear='all';renderStats()" style="margin-bottom:10px">全部</div>`,...cabYears.map(y=>`<div class="filter-chip ${cabYear===y?'active':''}" onclick="cabYear='${y}';renderStats()" style="margin-bottom:10px">${y}</div>`)].join('');
+  html+=`<div class="card" style="margin-bottom:14px">
+    <div style="font-weight:600;margin-bottom:8px">CAB-7888</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${yearChips}</div>`;
   if(labelTxs.length){
     const lmap={};
-    labelTxs.forEach(t=>{const k=t.subcategory||t.category||'其他';if(!lmap[k])lmap[k]={total:0,cat:t.category||''};lmap[k].total+=t.amount;});
+    labelTxs.forEach(t=>{const k=t.subcategory||'未分類';if(!lmap[k])lmap[k]={total:0,cat:t.category||'',txs:[]};lmap[k].total+=t.amount;lmap[k].txs.push(t);});
     const lData=Object.entries(lmap).sort((a,b)=>b[1].total-a[1].total);
     const lTotal=lData.reduce((s,[,v])=>s+v.total,0);
     const R=80,cx=100,cy=100,ir=40;
@@ -1135,22 +1141,44 @@ function renderStats(){
       if(frac>0.001)slices2+=`<path d="M${xi1},${yi1} L${x1},${y1} A${R},${R} 0 ${lg},1 ${x2},${y2} L${xi2},${yi2} A${ir},${ir} 0 ${lg},0 ${xi1},${yi1}" fill="${color}" opacity="0.9"/>`;
       angle+=a;
     });
-    html+=`<div class="card" style="margin-bottom:14px">
-      <div style="font-weight:600;margin-bottom:2px">CAB-7888</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:14px">合計 ${fmtMoney(lTotal)}</div>
-      <div style="display:flex;align-items:center;gap:12px">
+    html+=`<div style="font-size:12px;color:var(--muted);margin-bottom:10px">合計 ${fmtMoney(lTotal)}</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
         <svg viewBox="0 0 200 200" style="width:66%;flex-shrink:0">${slices2}</svg>
         <div style="flex:1;min-width:0">`;
     lData.forEach(([name,v],i)=>{
       const color=getCatSubcolor(v.cat,name,i);
       html+=`<div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
         <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
-        <span style="font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
-        <span style="font-size:11px;color:var(--muted);flex-shrink:0">${fmtMoney(v.total)}</span>
+        <span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
       </div>`;
     });
-    html+=`</div></div></div>`;
+    html+=`</div></div>`;
+    // subcategory detail list
+    html+=`<div style="border-top:1px solid var(--border);padding-top:8px">`;
+    lData.forEach(([name,v],i)=>{
+      const color=getCatSubcolor(v.cat,name,i);
+      const detailId=`cab-detail-${i}`;
+      html+=`<div>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer" onclick="toggleStatDetail('${detailId}')">
+          <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
+          <span style="flex:1;font-size:14px">${name}</span>
+          <span style="font-weight:600;font-size:14px">${fmtMoney(v.total)}</span>
+          <span style="color:var(--muted);font-size:12px;margin-left:4px">▼</span>
+        </div>
+        <div id="${detailId}" style="display:none;padding:0 0 8px 22px">
+          ${v.txs.sort((a,b)=>b.date.localeCompare(a.date)).map(t=>`
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">
+              <span style="color:var(--muted)">${t.date.slice(5)}&nbsp;&nbsp;${t.name||''}</span>
+              <span>${fmtMoney(t.amount)}</span>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    });
+    html+=`</div>`;
+  } else {
+    html+=`<div style="text-align:center;color:var(--muted);padding:20px;font-size:14px">此年度無資料</div>`;
   }
+  html+=`</div>`;
 
   document.getElementById('stats-content').innerHTML=html;
 }
@@ -1247,7 +1275,8 @@ function openTxModal(type){
 }
 
 function openEditTxModal(id){
-  const t=transactions.find(tx=>tx.id===id);if(!t)return;
+  const rawId=String(id).replace(/^(home|rec)-/,'');
+  const t=transactions.find(tx=>String(tx.id)===rawId);if(!t)return;
   _txType=t.txType||'expense';_selCat=t.category||'';_selSubcat=t.subcategory||'';_selPay=t.payment||'';
   _selLabels=t.label?t.label.split(',').map(x=>x.trim()).filter(Boolean):[];
   document.getElementById('tx-modal-title').textContent=_txType==='income'?'編輯收入':'編輯支出';
