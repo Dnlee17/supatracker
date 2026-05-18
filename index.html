@@ -358,6 +358,22 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
       <div><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:5px">圖示</label><input type="text" id="cat-icon-input" placeholder="🍽️" maxlength="4" style="width:100%;font-size:24px;text-align:center;padding:8px"></div>
       <div><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:5px">類別名稱</label><input type="text" id="cat-name" placeholder="例：餐飲" style="width:100%"></div>
     </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div>
+        <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:5px">類別顏色</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="color" id="cat-color" value="#3b82f6" style="width:44px;height:38px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px">
+          <span id="cat-color-preview" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:5px">子類別顏色</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="color" id="cat-subcolor" value="#93c5fd" style="width:44px;height:38px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px">
+          <span id="cat-subcolor-preview" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+      </div>
+    </div>
     <div class="form-group">
       <label>子類別（每行一個）</label>
       <textarea id="cat-subcats" placeholder="早餐&#10;午餐&#10;晚餐"></textarea>
@@ -445,11 +461,13 @@ async function init(){
     const catMap={};
     (cat||[]).forEach(row=>{
       if(!row.category)return;
-      if(!catMap[row.category])catMap[row.category]={subs:[],icon:row.icon||''};
+      if(!catMap[row.category])catMap[row.category]={subs:[],icon:row.icon||'',color:row.color||'',subcolor:row.subcolor||''};
       if(row.subcategory)catMap[row.category].subs.push(row.subcategory);
       if(row.icon)catMap[row.category].icon=row.icon;
+      if(row.color)catMap[row.category].color=row.color;
+      if(row.subcolor)catMap[row.category].subcolor=row.subcolor;
     });
-    categories=Object.entries(catMap).map(([name,data])=>({name,subs:data.subs,icon:data.icon||''}));
+    categories=Object.entries(catMap).map(([name,data])=>({name,subs:data.subs,icon:data.icon||'',color:data.color||'',subcolor:data.subcolor||''}));
     // build iconOverrides from supabase data
     categories.forEach(c=>{if(c.icon)iconOverrides[c.name]=c.icon;});
     payMethods=(pay||[]).map(p=>p.payment).filter(Boolean);
@@ -1639,6 +1657,8 @@ function openAddCatModal(){
   document.getElementById('cat-name').value='';
   document.getElementById('cat-subcats').value='';
   document.getElementById('cat-edit-old-name').value='';
+  document.getElementById('cat-color').value='#3b82f6';
+  document.getElementById('cat-subcolor').value='#93c5fd';
   document.getElementById('cat-save-btn').textContent='新增類別';
   document.getElementById('cat-save-btn').disabled=false;
   document.getElementById('cat-modal').classList.add('open');
@@ -1651,6 +1671,8 @@ function openEditCatModal(i){
   document.getElementById('cat-name').value=cat.name;
   document.getElementById('cat-subcats').value=(cat.subs||[]).join('\n');
   document.getElementById('cat-edit-old-name').value=cat.name;
+  document.getElementById('cat-color').value=cat.color||'#3b82f6';
+  document.getElementById('cat-subcolor').value=cat.subcolor||'#93c5fd';
   document.getElementById('cat-save-btn').textContent='儲存變更';
   document.getElementById('cat-save-btn').disabled=false;
   document.getElementById('cat-modal').classList.add('open');
@@ -1662,18 +1684,17 @@ async function saveCat(){
   const oldName=document.getElementById('cat-edit-old-name').value;
   const subsRaw=document.getElementById('cat-subcats').value;
   const subs=subsRaw.split('\n').map(s=>s.trim()).filter(Boolean);
+  const color=document.getElementById('cat-color').value||'#3b82f6';
+  const subcolor=document.getElementById('cat-subcolor').value||'#93c5fd';
   if(!name){showToast('請填入類別名稱');return;}
   if(icon)iconOverrides[name]=icon;else delete iconOverrides[name];
   const btn=document.getElementById('cat-save-btn');btn.disabled=true;
   try{
-    // delete old rows
     if(oldName)await sb('category','DELETE',null,`?category=eq.${encodeURIComponent(oldName)}`);
-    // insert new rows
     const newSortOrder=oldName?categories.findIndex(c=>c.name===oldName):categories.length;
-    const rows=subs.length?subs.map(s=>({category:name,subcategory:s,icon:icon||null,sortOrder:newSortOrder})):[{category:name,subcategory:null,icon:icon||null,sortOrder:newSortOrder}];
+    const rows=subs.length?subs.map(s=>({category:name,subcategory:s,icon:icon||null,sortOrder:newSortOrder,color,subcolor})):[{category:name,subcategory:null,icon:icon||null,sortOrder:newSortOrder,color,subcolor}];
     await sb('category','POST',rows);
-    // update local
-    const catObj={name,subs,icon:icon||''};
+    const catObj={name,subs,icon:icon||'',color,subcolor};
     if(icon)iconOverrides[name]=icon;else delete iconOverrides[name];
     if(oldName){const idx=categories.findIndex(c=>c.name===oldName);if(idx>=0)categories[idx]=catObj;else categories.push(catObj);}
     else categories.push(catObj);
@@ -1698,7 +1719,7 @@ async function moveCat(i,dir){
 async function deleteSubcat(catIdx,subIdx){
   const cat=categories[catIdx];if(!cat)return;
   cat.subs.splice(subIdx,1);
-  const rows=cat.subs.length?cat.subs.map(s=>({category:cat.name,subcategory:s,icon:iconOverrides[cat.name]||null,sortOrder:catIdx})):[{category:cat.name,subcategory:null,icon:iconOverrides[cat.name]||null,sortOrder:catIdx}];
+  const rows=cat.subs.length?cat.subs.map(s=>({category:cat.name,subcategory:s,icon:iconOverrides[cat.name]||null,sortOrder:catIdx,color:cat.color||null,subcolor:cat.subcolor||null})):[{category:cat.name,subcategory:null,icon:iconOverrides[cat.name]||null,sortOrder:catIdx,color:cat.color||null,subcolor:cat.subcolor||null}];
   await sb('category','DELETE',null,`?category=eq.${encodeURIComponent(cat.name)}`);
   for(const r of rows)await sb('category','POST',r);
   renderCatManage();
