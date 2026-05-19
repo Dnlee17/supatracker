@@ -362,8 +362,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
       <div><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:5px">類別名稱</label><input type="text" id="cat-name" placeholder="例：餐飲" style="width:100%"></div>
     </div>
     <div class="form-group">
-      <label>子類別（每行一個）</label>
-      <textarea id="cat-subcats" placeholder="早餐&#10;午餐&#10;晚餐"></textarea>
+      <label>子類別</label>
+      <div id="cat-subs-list" style="margin-bottom:8px"></div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="cat-new-sub-input" placeholder="新增子類別" style="flex:1">
+        <button onclick="catAddSub()" style="padding:10px 14px;border:none;background:var(--accent);color:#fff;border-radius:10px;font-size:14px;cursor:pointer">新增</button>
+      </div>
     </div>
     <input type="hidden" id="cat-edit-old-name">
     <button class="btn-primary" id="cat-save-btn" onclick="saveCat()">儲存</button>
@@ -438,7 +442,7 @@ let selectedDate=todayStr();
 let statsMonthIdx=0,cabYear='all';
 let routeRows=[];
 let recTab='all',recMonth='all',recYear=new Date().getFullYear().toString(),recCat='all';
-let _selCat='',_selSubcat='',_selPay='',_txType='expense',_selCardId='',_selRoutes=[],_selLabels=[];
+let _editCatSubs=[];let _selCat='',_selSubcat='',_selPay='',_txType='expense',_selCardId='',_selRoutes=[],_selLabels=[];
 let overviewMonthIdx=0;
 let expandedCards=new Set();
 let billingPeriods=[];
@@ -1795,11 +1799,12 @@ function openAddCatModal(){
   document.getElementById('cat-modal-title').textContent='新增類別';
   document.getElementById('cat-icon-input').value='';
   document.getElementById('cat-name').value='';
-  document.getElementById('cat-subcats').value='';
   document.getElementById('cat-edit-old-name').value='';
   document.getElementById('cat-color').value='#3b82f6';
+  document.getElementById('cat-new-sub-input').value='';
   document.getElementById('cat-save-btn').textContent='新增類別';
   document.getElementById('cat-save-btn').disabled=false;
+  _editCatSubs=[];renderEditCatSubs('');
   document.getElementById('cat-modal').classList.add('open');
 }
 
@@ -1808,34 +1813,87 @@ function openEditCatModal(i){
   document.getElementById('cat-modal-title').textContent='編輯類別';
   document.getElementById('cat-icon-input').value=iconOverrides[cat.name]||'';
   document.getElementById('cat-name').value=cat.name;
-  document.getElementById('cat-subcats').value=(cat.subs||[]).join('\n');
   document.getElementById('cat-edit-old-name').value=cat.name;
   document.getElementById('cat-color').value=cat.color||'#3b82f6';
+  document.getElementById('cat-new-sub-input').value='';
   document.getElementById('cat-save-btn').textContent='儲存變更';
   document.getElementById('cat-save-btn').disabled=false;
+  _editCatSubs=(cat.subs||[]).map(s=>({name:s}));
+  renderEditCatSubs(cat.name);
   document.getElementById('cat-modal').classList.add('open');
+}
+
+function renderEditCatSubs(catName){
+  const el=document.getElementById('cat-subs-list');
+  if(!el)return;
+  if(!_editCatSubs.length){el.innerHTML='<div style="font-size:13px;color:var(--muted);padding:4px 0">尚無子類別</div>';return;}
+  el.innerHTML=_editCatSubs.map((s,i)=>`
+    <div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border)">
+      <span style="flex:1;font-size:14px">${s.name}</span>
+      <button onclick="catRemoveSub(${i})" style="border:none;background:none;color:var(--red);font-size:18px;cursor:pointer;padding:2px;line-height:1">×</button>
+    </div>`).join('');
+}
+
+function catAddSub(){
+  const input=document.getElementById('cat-new-sub-input');
+  const val=input.value.trim();
+  if(!val)return;
+  if(_editCatSubs.find(s=>s.name===val)){showToast('已存在');return;}
+  _editCatSubs.push({name:val});
+  input.value='';
+  const catName=document.getElementById('cat-edit-old-name').value||document.getElementById('cat-name').value;
+  renderEditCatSubs(catName);
+}
+
+function catRemoveSub(i){
+  _editCatSubs.splice(i,1);
+  const catName=document.getElementById('cat-edit-old-name').value||document.getElementById('cat-name').value;
+  renderEditCatSubs(catName);
 }
 
 async function saveCat(){
   const icon=document.getElementById('cat-icon-input').value.trim();
   const name=document.getElementById('cat-name').value.trim();
   const oldName=document.getElementById('cat-edit-old-name').value;
-  const subsRaw=document.getElementById('cat-subcats').value;
-  const subs=subsRaw.split('\n').map(s=>s.trim()).filter(Boolean);
   const color=document.getElementById('cat-color').value||'';
   if(!name){showToast('請填入類別名稱');return;}
   if(icon)iconOverrides[name]=icon;else delete iconOverrides[name];
   const btn=document.getElementById('cat-save-btn');btn.disabled=true;
   try{
-    if(oldName)await sb('category','DELETE',null,`?category=eq.${encodeURIComponent(oldName)}`);
+    // 1. 如果改了名稱，先把舊的全刪
+    if(oldName&&oldName!==name){
+      await sb('category','DELETE',null,`?category=eq.${encodeURIComponent(oldName)}`);
+    }
     const newSortOrder=oldName?categories.findIndex(c=>c.name===oldName):categories.length;
-    // preserve existing subcolors
-    const rows=subs.length?subs.map(s=>{
-      const existingSubcolor=(window.subcolorMap||{})[(oldName||name)+'::'+s]||null;
-      return{category:name,subcategory:s,icon:icon||null,sortOrder:newSortOrder,color:color||null,subcolor:existingSubcolor};
-    }):[{category:name,subcategory:null,icon:icon||null,sortOrder:newSortOrder,color:color||null,subcolor:null}];
-    await sb('category','POST',rows);
-    // update subcolorMap keys if category name changed
+    const subs=_editCatSubs.map(s=>s.name);
+
+    if(oldName&&oldName===name){
+      // 名稱沒變：只更新 icon、color，子類別用 PATCH 保留 subcolor
+      // 先抓現有子類別
+      const existing=await sb('category','GET',null,`?category=eq.${encodeURIComponent(name)}&select=subcategory,subcolor`);
+      const existingMap={};
+      (existing||[]).forEach(r=>{if(r.subcategory)existingMap[r.subcategory]=r.subcolor;});
+      // 刪除已移除的子類別
+      const removedSubs=(categories.find(c=>c.name===name)?.subs||[]).filter(s=>!subs.includes(s));
+      for(const s of removedSubs){
+        await sb('category','DELETE',null,`?category=eq.${encodeURIComponent(name)}&subcategory=eq.${encodeURIComponent(s)}`);
+      }
+      // 新增新的子類別（保留舊的 subcolor）
+      const newSubs=subs.filter(s=>!existingMap.hasOwnProperty(s));
+      for(const s of newSubs){
+        await sb('category','POST',{category:name,subcategory:s,icon:icon||null,sortOrder:newSortOrder,color:color||null,subcolor:null});
+      }
+      // 更新所有 row 的 icon 和 color
+      await sb('category','PATCH',{icon:icon||null,color:color||null},`?category=eq.${encodeURIComponent(name)}`);
+    } else {
+      // 新增類別 or 改了名稱：全部重建，保留 subcolor
+      const rows=subs.length?subs.map(s=>{
+        const existingSubcolor=(window.subcolorMap||{})[(oldName||name)+'::'+s]||null;
+        return{category:name,subcategory:s,icon:icon||null,sortOrder:newSortOrder,color:color||null,subcolor:existingSubcolor};
+      }):[{category:name,subcategory:null,icon:icon||null,sortOrder:newSortOrder,color:color||null,subcolor:null}];
+      await sb('category','POST',rows);
+    }
+    // 更新 subcolorMap keys 如果類別名稱改了
     if(oldName&&oldName!==name&&window.subcolorMap){
       const newMap={};
       Object.entries(window.subcolorMap).forEach(([k,v])=>{
