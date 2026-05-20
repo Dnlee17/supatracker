@@ -997,18 +997,13 @@ function renderOverview(){
         const pct=cap>0?Math.min(routeReward/cap,1):0;
         const remaining=cap>0?Math.max(Math.floor((cap-routeReward)/Number(r.rate)),0):null;
         const isOver=cap>0&&routeReward>=cap;
-        return`<div style="font-size:12px;margin-bottom:4px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+        return`<div style="font-size:12px;margin-bottom:6px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;margin-bottom:2px">
             <span style="color:var(--text)">${r.channel} <span style="color:var(--muted)">${(Number(r.rate)*100).toFixed(1)}%</span></span>
+            <span style="text-align:center;font-size:11px;${isOver?'color:var(--red);font-weight:600':'color:var(--muted)'}">${isOver?'⚠️已達上限':cap>0?`餘 $${remaining.toLocaleString()}`:''}</span>
             <span style="text-align:right;${isOver?'color:var(--red);font-weight:600':'color:var(--muted)'}">$${routeReward.toFixed(0)} / ${cap>0?'$'+cap:'無上限'}</span>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            ${cap>0?`<div style="flex:1;height:3px;background:var(--border);border-radius:2px;margin-right:8px"><div style="height:3px;background:${isOver?'var(--red)':'var(--accent)'};border-radius:2px;width:${(pct*100).toFixed(1)}%"></div></div>`:'<div style="flex:1"></div>'}
-            <span style="font-size:11px;text-align:center;${isOver?'color:var(--red);font-weight:600':'color:var(--muted)'}">
-              ${isOver?'⚠️已達上限':cap>0?`餘 $${remaining.toLocaleString()}`:''}
-            </span>
-          </div>
-        </div>`;
+          ${cap>0?`<div style="height:3px;background:var(--border);border-radius:2px"><div style="height:3px;background:${isOver?'var(--red)':'var(--accent)'};border-radius:2px;width:${(pct*100).toFixed(1)}%"></div></div>`:''}`;
       }).join('')}
     </div>`:''}
     `;
@@ -1602,7 +1597,7 @@ function renderSettings(){
       <div class="settings-row">
         <div style="flex:1;min-width:0">
           <div style="font-size:15px;font-weight:500">${c.name}</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:2px">帳單截止：${c.billingDay}號 ・ 上限：${Number(c.limit)>0?fmtMoney(Number(c.limit)):'無上限'}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">帳單截止：${c.billingDay}號 ・ 上限：${(()=>{const valid=(c.routes||[]).filter(r=>r.channel&&r.rate>0&&r.maxReward>0);if(!valid.length)return'無上限';const max=Math.max(...valid.map(r=>Math.floor(r.maxReward/r.rate)));return fmtMoney(max);})()}</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${routeHtml}</div>
         </div>
         <button class="settings-edit-btn" onclick="openEditCardModal('${c.id}')">編輯</button>
