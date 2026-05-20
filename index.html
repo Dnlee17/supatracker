@@ -1040,7 +1040,7 @@ function renderOverview(){
               <div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center">${subTag}${payTag}</div>
               <span style="font-size:14px;font-weight:700;color:var(--red);white-space:nowrap;flex-shrink:0">${fmtMoney(t.amount)}</span>
             </div>
-            ${rwParts?`<div style="font-size:10px;color:var(--green)">${rwParts}</div>`:''}
+            ${rwParts?`<div style="font-size:10px;color:var(--green);text-align:right">${rwParts}</div>`:''}
           </div>
         </div>`;
       });
